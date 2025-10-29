@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Search ราชาศัพท์</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body,html{
+    margin:0;
+    padding:0;
+    font-family:'Sarabun',sans-serif;
+    height:100%;
+}
+.screen{
+    display:none;
+    width:100%;
+    min-height:100vh; 
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    transition:background 0.5s;
+    overflow-y: auto; 
+    padding: 20px 0; 
+    box-sizing: border-box;
+}
+
+/* --- Start Screen Styles (ไม่เปลี่ยนแปลง) --- */
+#startScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:10;
+background:linear-gradient(135deg,#ff6b6b,#ffdd57,#57a0ff,#6bf7b2);background-size:400% 400%;
+animation:gradientBG 10s ease infinite;color:#fff;text-shadow:2px 2px 4px rgba(0,0,0,0.3);}
+#startScreen h1{font-size:3em;margin-bottom:20px;animation:bounce 1.5s infinite alternate;}
+@keyframes gradientBG{
+ 0%{background-position:0% 50%;}
+ 50%{background-position:100% 50%;}
+ 100%{background-position:0% 50%;}
+}
+@keyframes bounce{
+ 0%,100%{transform:translateY(0);}
+ 50%{transform:translateY(-15px);}
+}
+input{padding:12px;margin:10px 8px;border-radius:10px;border:3px solid #fff;font-size:18px;width:70%;max-width:300px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);background:rgba(255,255,255,0.95);color:#333;}
+button{padding:14px 30px;margin:15px 8px;border:none;border-radius:12px;font-size:20px;font-weight:700;cursor:pointer;transition:all 0.3s ease;background:#10b981;color:#fff;box-shadow:0 6px #0d8d64;}
+button:hover{transform:translateY(-2px);box-shadow:0 8px #0d8d64;}
+button:active{transform:translateY(2px);box-shadow:0 4px #0d8d64;}
+
+/* --- Game Screen Styles --- */
+#gameScreen{
+    display:flex;flex-direction:column;align-items:center;padding:10px;box-sizing:border-box;
+    background-color:var(--level-color, #f0f0f0);color:#333;transition:background-color 0.5s;
+}
+#gameScreen h2{margin-top:10px;font-size:24px;color:#fff;text-shadow:1px 1px 2px rgba(0,0,0,0.5);}
+.timer{font-size:20px;margin:5px 0 15px;padding:5px 10px;background:rgba(0,0,0,0.1);border-radius:8px;color:#fff;font-weight:700;}
+#gridContainer{
+    display:grid;gap:2px;margin:10px auto;touch-action:none;
+    width:95vw;max-width:450px; 
+    aspect-ratio:1/1;
+}
+.cell{
+    display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);border-radius:5px;
+    /* *** การแก้ไข: ลดขนาดฟอนต์ให้เล็กลง (จาก 3.5vw เป็น 3.0vw) *** */
+    font-size:max(12px, 3.0vw); 
+    font-weight:700;min-width:0;min-height:0;user-select:none;aspect-ratio:1/1;color:#333;transition:background 0.1s;
+}
+.cell.highlight{background:#ffee58;transform:scale(1.05);}
+.cell.found{background:var(--found-color, #ff6b6b);color:#fff;font-weight:bold;transform:scale(1);}
+.wordList{
+    display:flex;flex-wrap:wrap;justify-content:center;margin:15px 0;width:95vw;max-width:600px;
+    padding:0 10px;box-sizing:border-box;
+    max-height: 150px; 
+    overflow-y: auto; 
+    border: 1px solid rgba(255, 255, 255, 0.5); 
+    border-radius: 10px;
+}
+.word{padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.9);margin:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.word.found{background:#ff6b6b;color:#fff;font-weight:bold;text-decoration:line-through;opacity:0.8;}
+#revealBtn{background:#f39c12;box-shadow:0 6px #e67e22;}
+
+/* --- End Screen (Modal) Styles (ไม่เปลี่ยนแปลง) --- */
+#endScreen{
+    display: none; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); 
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px); 
+}
+.modal-content{
+    background: linear-gradient(135deg, #ff9f43, #ff6b6b); 
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    color: #fff;
+    text-align: center;
+    max-width: 90%;
+    transform: scale(0.8);
+    opacity: 0;
+    animation: modal-show 0.5s forwards;
+}
+@keyframes modal-show {
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+.modal-content h1{font-size:3.5em;margin-bottom:20px;}
+.modal-content p{font-size:1.5em;margin:10px 0;padding:5px;background:rgba(0,0,0,0.1);border-radius:8px;}
+#restartBtn{background:#3498db;box-shadow:0 6px #2980b9; margin-top: 20px;}
+
+/* Media Queries for better responsiveness */
+@media (max-width: 600px) {
+  #startScreen h1{font-size:2.5em;}
+  button{padding:12px 25px;font-size:18px;}
+  #gridContainer{max-width:350px;}
+  .modal-content h1{font-size:2.5em;}
+  .modal-content p{font-size:1.2em;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="startScreen" class="screen">
+    <h1>Word Search ราชาศัพท์</h1>
+    <input type="text" id="playerName" placeholder="ชื่อผู้เล่น">
+    <input type="number" id="playerAge" placeholder="อายุ" min="1">
+    <button id="startBtn">เริ่มเกม</button>
+  </div>
+
+  <div id="gameScreen" class="screen">
+    <h2 id="levelTitle"></h2>
+    <div class="timer">เวลาที่เหลือ: <span id="timeCounter">60</span> วินาที</div>
+    <div id="gridContainer"></div>
+    <div id="wordsContainer" class="wordList"></div>
+    <button id="revealBtn">โชว์คำที่เหลือ</button>
+  </div>
+
+  <div id="endScreen" class="modal">
+    <div class="modal-content">
+        <h1>จบเกมแล้ว 🎉</h1>
+        <p id="playerInfo"></p>
+        <p id="finalLevel"></p>
+        <p id="totalTime"></p>
+        <button id="restartBtn">เล่นใหม่</button>
+    </div>
+  </div>
+</div>
+
+<audio id="foundSound"><source src="https://assets.mixkit.co/sfx/preview/mixkit-positive-fanfare-explosion-1918.mp3" type="audio/mpeg"></audio>
+
+<script>
+// คำราชาศัพท์
+const ALL_WORDS = [
+    'เสวย','เสด็จ','ทรง','ประทับ','พระราชทาน','รับสั่ง','สวรรคต','พระราชดำริ','เฉลิมพระเกียรติ',
+    'พระบรมราชโองการ', 'พระราชบัญญัติ', 'พระโอรส', 'พระธิดา', 'พระองค์', 'พระนาม', 'พระมหากษัตริย์',
+    'พระบรมสารีริกธาตุ', 'พระบาท', 'พระหัตถ์', 'พระเนตร', 'พระกรุณา', 'มีพระราชปฏิสันถาร', 'ราชาศัพท์'
+];
+
+// 10 ด่าน (ปรับความยากจากง่ายไปยาก)
+const LEVELS = [
+  {rows:8, cols:8, numWords:4, dirs:[[0,1],[1,0]], color:'#a8dadc', foundColor:'#457b9d'}, 
+  {rows:9, cols:9, numWords:5, dirs:[[0,1],[1,0],[1,1]], color:'#ffdd57', foundColor:'#f1c40f'}, 
+  {rows:10,cols:10,numWords:6,dirs:[[0,1],[1,0],[1,1]], color:'#6bf7b2', foundColor:'#2ecc71'},
+  {rows:11,cols:11,numWords:6,dirs:[[0,1],[1,0],[1,1],[-1,0]], color:'#57a0ff', foundColor:'#3498db'}, 
+  {rows:12,cols:12,numWords:7,dirs:[[0,1],[1,0],[1,1],[-1,0],[0,-1]], color:'#ff57f7', foundColor:'#9b59b6'}, 
+  {rows:13,cols:13,numWords:7,dirs:[[0,1],[1,0],[1,1],[-1,0],[0,-1],[-1,-1]], color:'#ff9f43', foundColor:'#e67e22'}, 
+  {rows:14,cols:14,numWords:8,dirs:[[0,1],[1,0],[1,1],[-1,0],[0,-1],[-1,-1],[1,-1]], color:'#ff6b6b', foundColor:'#c0392b'}, 
+  {rows:14,cols:14,numWords:8,dirs:[[0,1],[1,0],[1,1],[-1,0],[0,-1],[-1,-1],[1,-1],[-1,1]], color:'#6bffdd', foundColor:'#1abc9c'}, 
+  {rows:15,cols:15,numWords:9,dirs:[[0,1],[1,0],[1,1],[-1,0],[0,-1],[-1,-1],[1,-1],[-1,1]], color:'#f7ff6b', foundColor:'#f39c12'},
+  {rows:15,cols:15,numWords:10,dirs:[[0,1],[1,0],[1,1],[-1,0],[0,-1],[-1,-1],[1,-1],[-1,1]], color:'#ff57a5', foundColor:'#e74c3c'}
+];
+
+let currentLevel=0, playerName='', playerAge='';
+let grid=[], placedWords=[], cellEls=[], totalTime=0, remainingTime=60;
+let timerInterval;
+
+let usedWordsInGame = [];
+
+const startScreen=document.getElementById('startScreen');
+const gameScreen=document.getElementById('gameScreen');
+const endScreen=document.getElementById('endScreen');
+const gridContainer=document.getElementById('gridContainer');
+const wordsContainer=document.getElementById('wordsContainer');
+const levelTitle=document.getElementById('levelTitle');
+const timeCounter=document.getElementById('timeCounter');
+const foundSound=document.getElementById('foundSound');
+
+// --- Event Listeners ---
+document.getElementById('startBtn').onclick=()=>{
+  playerName=document.getElementById('playerName').value||'ผู้เล่น';
+  playerAge=document.getElementById('playerAge').value||'-';
+  if(playerName.trim()===''){alert('กรุณากรอกชื่อผู้เล่น');return;}
+  startScreen.style.display='none';
+  gameScreen.style.display='flex';
+  currentLevel=0; totalTime=0;
+  usedWordsInGame = []; 
+  startLevel();
+};
+
+document.getElementById('restartBtn').onclick=()=>{
+  endScreen.style.display='none';
+  startScreen.style.display='flex';
+};
+
+document.getElementById('revealBtn').onclick=()=>{
+  if(placedWords.every(w=>w.found)) return; 
+  
+  placedWords.forEach(pw=>{
+    if(!pw.found){
+      pw.path.forEach(pos=>cellEls[pos.r][pos.c].style.backgroundColor='rgba(255, 0, 0, 0.7)');
+      pw.found=true;
+    }
+  });
+  renderWords();
+  document.getElementById('revealBtn').disabled = true; 
+  setTimeout(nextLevel, 2000); 
+};
+
+// --- Grid Generation and Rendering ---
+function createGrid(rows,cols){return Array.from({length:rows},()=>Array(cols).fill(''));}
+function fillRandom(){const THAI='กขคฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลวศษสหฬอฮ';for(let r=0;r<grid.length;r++)for(let c=0;c<grid[0].length;c++)if(grid[r][c]==='')grid[r][c]=THAI[Math.floor(Math.random()*THAI.length)];}
+function tryPlace(word, dirs){
+  const chars=[...word];
+  for(let t=0;t<chars.length*grid.length*grid[0].length;t++){
+    const dir=dirs[Math.floor(Math.random()*dirs.length)];
+    const sr=Math.floor(Math.random()*grid.length);
+    const sc=Math.floor(Math.random()*grid[0].length);
+    const er=sr+dir[0]*(chars.length-1), ec=sc+dir[1]*(chars.length-1);
+    if(er<0||er>=grid.length||ec<0||ec>=grid[0].length)continue;
+    let ok=true;const path=[];
+    for(let i=0;i<chars.length;i++){
+      const r=sr+dir[0]*i,c=sc+dir[1]*i;const cell=grid[r][c];
+      if(cell===''||cell===chars[i])path.push({r,c});else{ok=false;break;}
+    }
+    if(!ok)continue;
+    for(let i=0;i<chars.length;i++){grid[sr+dir[0]*i][sc+dir[1]*i]=chars[i];}
+    return path;
+  }
+  return null;
+}
+
+function renderGrid(){
+  gridContainer.innerHTML='';cellEls=[];
+  gridContainer.style.gridTemplateColumns=`repeat(${grid[0].length},1fr)`;
+  gridContainer.style.gridTemplateRows=`repeat(${grid.length},1fr)`;
+  for(let r=0;r<grid.length;r++){
+    cellEls[r]=[];
+    for(let c=0;c<grid[0].length;c++){
+      const div=document.createElement('div');
+      div.className='cell';
+      div.textContent=grid[r][c];
+      gridContainer.appendChild(div);
+      div.dataset.r=r;div.dataset.c=c;cellEls[r][c]=div;
+    }
+  }
+}
+function renderWords(){
+  wordsContainer.innerHTML='';
+  const currentFoundColor = LEVELS[currentLevel].foundColor;
+  document.documentElement.style.setProperty('--found-color', currentFoundColor);
+
+  placedWords.forEach(pw=>{
+    const w=document.createElement('div');
+    w.className='word';
+    w.textContent=pw.word;
+    if(pw.found){
+      w.classList.add('found');
+      w.style.backgroundColor = currentFoundColor;
+    }
+    wordsContainer.appendChild(w);
+  });
+}
+
+function startLevel(){
+  clearInterval(timerInterval);
+  const level=LEVELS[currentLevel];
+  grid=createGrid(level.rows,level.cols);placedWords=[];
+  
+  let availableWordsPool = ALL_WORDS.filter(word => !usedWordsInGame.includes(word));
+  
+  if(availableWordsPool.length < level.numWords){
+    availableWordsPool = [...ALL_WORDS];
+    usedWordsInGame = []; 
+  }
+  
+  let wordsForThisLevel = [];
+
+  for (let i = 0; i < level.numWords && availableWordsPool.length > 0; i++) {
+    const randomIndex = Math.floor(Math.random() * availableWordsPool.length);
+    const word = availableWordsPool[randomIndex];
+
+    const path = tryPlace(word, level.dirs);
+    if (path) {
+      placedWords.push({ word, path, found: false });
+      wordsForThisLevel.push(word);
+    }
+    
+    availableWordsPool.splice(randomIndex, 1); 
+  }
+  
+  usedWordsInGame.push(...wordsForThisLevel);
+
+  fillRandom();renderGrid();renderWords();
+  levelTitle.textContent=`ด่าน ${currentLevel+1} / ${LEVELS.length}`;
+  document.documentElement.style.setProperty('--level-color', level.color);
+  document.documentElement.style.setProperty('--found-color', level.foundColor);
+  gameScreen.style.background = level.color; 
+
+  remainingTime=60;
+  timeCounter.textContent=remainingTime;
+  document.getElementById('revealBtn').disabled = false; 
+  timerInterval=setInterval(()=>{
+    remainingTime--;
+    timeCounter.textContent=remainingTime;
+    if(remainingTime<=0){clearInterval(timerInterval);nextLevel();}
+  },1000);
+}
+
+// --- Word Selection Logic (ไม่เปลี่ยนแปลง) ---
+let selecting=false, selStart=null, selCells=[], touchIdentifier=null;
+function getPath(r1,c1,r2,c2){
+  const dr=Math.sign(r2-r1),dc=Math.sign(c2-c1);
+  if(Math.abs(dr) !== 0 && Math.abs(dc) !== 0 && Math.abs(dr) !== Math.abs(dc)) return null; 
+  
+  const path=[];let r=r1,c=c1;
+  while(true){
+    path.push({r,c});
+    if(r===r2&&c===c2)break;
+    if(path.length > Math.max(grid.length, grid[0].length)) return null; 
+    r+=dr;c+=dc;
+  }
+  return path;
+}
+function clearHighlights(){for(let r=0;r<cellEls.length;r++)for(let c=0;c<cellEls[0].length;c++)cellEls[r][c].classList.remove('highlight');}
+
+// รวม Mouse และ Touch Events
+['mousedown','mousemove','mouseup','touchstart','touchmove','touchend'].forEach(ev=>{
+  document.addEventListener(ev,e=>{
+    if(e.type.startsWith('touch') && e.target.closest('#gridContainer')) e.preventDefault(); 
+    
+    let point, el;
+
+    if(e.type.startsWith('touch')){
+      point = e.touches[0] || e.changedTouches[0];
+      el = document.elementFromPoint(point.clientX,point.clientY);
+      if(ev==='touchstart'){touchIdentifier=point.identifier;}
+      else if(ev!=='touchstart' && point.identifier !== touchIdentifier) return;
+      else if(ev==='touchend'){touchIdentifier=null;}
+    } else {
+      point = e;
+      el = e.target.closest('.cell'); 
+    }
+
+    if(!el || !el.classList.contains('cell')) return;
+    
+    const r=+el.dataset.r,c=+el.dataset.c;
+
+    if(ev==='mousedown'||ev==='touchstart'){
+      selecting=true;selStart={r,c};clearHighlights();
+      el.classList.add('highlight');selCells=[selStart];
+    }
+    else if(ev==='mousemove'||ev==='touchmove'){
+      if(!selecting) return;
+      const path=getPath(selStart.r,selStart.c,r,c);
+      if(path){
+        clearHighlights();
+        selCells=path;
+        selCells.forEach(p=>cellEls[p.r][p.c].classList.add('highlight'));
+      }
+    }
+    else if(ev==='mouseup'||ev==='touchend'){
+      if(!selecting) return;
+      selecting=false;
+      clearHighlights();
+      if(selCells.length < 2) return; 
+
+      const s=selCells.map(p=>grid[p.r][p.c]).join('');
+      const rev=s.split('').reverse().join('');
+      
+      for(const pw of placedWords){
+        if(!pw.found&&(pw.word===s||pw.word===rev)){
+          pw.found=true;
+          pw.path.forEach(pos=>cellEls[pos.r][pos.c].classList.add('found'));
+          foundSound.play();
+          break;
+        }
+      }
+      
+      renderWords();
+      
+      if(placedWords.every(w=>w.found)){
+        clearInterval(timerInterval);
+        totalTime+=60-remainingTime;
+        setTimeout(nextLevel, 1000); 
+      }
+    }
+  });
+});
+
+// --- Level Control ---
+function nextLevel(){
+  clearInterval(timerInterval);
+  if(placedWords.every(w=>w.found)) totalTime+=60-remainingTime; 
+  else totalTime+=60; 
+
+  currentLevel++;
+  if(currentLevel>=LEVELS.length){endGame();return;}
+  startLevel();
+}
+
+function endGame(){
+  endScreen.style.display='flex'; 
+  
+  const playerInfoEl = endScreen.querySelector('#playerInfo');
+  const finalLevelEl = endScreen.querySelector('#finalLevel');
+  const totalTimeEl = endScreen.querySelector('#totalTime');
+
+  playerInfoEl.textContent=`ผู้เล่น: ${playerName}, อายุ: ${playerAge}`;
+  finalLevelEl.textContent=`คุณเล่นถึงด่าน ${currentLevel} / ${LEVELS.length}`;
+  totalTimeEl.textContent=`เวลารวมทั้งหมด: ${totalTime} วินาที`;
+}
+</script>
+</body>
+</html>
